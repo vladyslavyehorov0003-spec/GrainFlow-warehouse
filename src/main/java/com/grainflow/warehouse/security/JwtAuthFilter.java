@@ -51,6 +51,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     validated.email(),
                     validated.role()
             );
+            log.debug("Authenticated user: email={}, role={}, authorities={}",
+                    principal.email(), principal.role(), principal.getAuthorities());
 
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(

@@ -58,6 +58,9 @@ public class LabAnalysis {
     @Column
     private LocalDateTime dryingFinishedAt;
 
+    @Column
+    private LocalDateTime estimatedDryingEndAt;
+
     // Volume loaded onto the dryer, in tonnes
     @Column(precision = 12, scale = 3)
     private BigDecimal volumeBeforeDrying;
@@ -78,6 +81,13 @@ public class LabAnalysis {
     // When PASSED or FAILED decision was recorded
     @Column
     private LocalDateTime decidedAt;
+
+    // Set when grain is moved to a silo (status → STORED)
+    @Column
+    private UUID siloId;
+
+    @Column
+    private LocalDateTime storedAt;
 
     @Column
     private String comment;
