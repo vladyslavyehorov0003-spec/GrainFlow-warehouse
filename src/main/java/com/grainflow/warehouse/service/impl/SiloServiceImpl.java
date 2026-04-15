@@ -9,6 +9,7 @@ import com.grainflow.warehouse.mapper.SiloMapper;
 import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.SiloRepository;
 import com.grainflow.warehouse.repository.SiloSpecification;
+import com.grainflow.warehouse.audit.Auditable;
 import com.grainflow.warehouse.service.SiloService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class SiloServiceImpl implements SiloService {
 
     @Override
     @Transactional
+    @Auditable(action = "SILO_CREATED", entityType = "SILO")
     public SiloResponse create(CreateSiloRequest request, UUID companyId) {
         if (siloRepository.existsByNameAndCompanyId(request.name(), companyId)) {
             throw WarehouseException.conflict("Silo with this name already exists: " + request.name());
@@ -49,6 +51,7 @@ public class SiloServiceImpl implements SiloService {
 
     @Override
     @Transactional
+    @Auditable(action = "SILO_UPDATED", entityType = "SILO")
     public SiloResponse update(UUID id, UpdateSiloRequest request, UUID companyId) {
         Silo silo = findOwned(id, companyId);
 
@@ -89,6 +92,7 @@ public class SiloServiceImpl implements SiloService {
 
     @Override
     @Transactional
+    @Auditable(action = "SILO_GRAIN_ADDED", entityType = "SILO")
     public SiloResponse addGrain(UUID id, AddGrainRequest request, UUID companyId) {
         Silo silo = findOwned(id, companyId);
 
@@ -130,6 +134,7 @@ public class SiloServiceImpl implements SiloService {
 
     @Override
     @Transactional
+    @Auditable(action = "SILO_GRAIN_REMOVED", entityType = "SILO")
     public SiloResponse removeGrain(UUID id, RemoveGrainRequest request, UUID companyId) {
         Silo silo = findOwned(id, companyId);
 

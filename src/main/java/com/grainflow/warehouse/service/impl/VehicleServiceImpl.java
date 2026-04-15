@@ -13,6 +13,7 @@ import com.grainflow.warehouse.mapper.VehicleMapper;
 import com.grainflow.warehouse.repository.BatchRepository;
 import com.grainflow.warehouse.repository.VehicleRepository;
 import com.grainflow.warehouse.repository.VehicleSpecification;
+import com.grainflow.warehouse.audit.Auditable;
 import com.grainflow.warehouse.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_CREATED", entityType = "VEHICLE")
     public VehicleResponse create(CreateVehicleRequest request, UUID companyId) {
         Batch batch = batchRepository.findById(request.batchId())
                 .orElseThrow(() -> WarehouseException.notFound("Batch not found: " + request.batchId()));
@@ -60,6 +62,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_UPDATED", entityType = "VEHICLE")
     public VehicleResponse update(UUID id, UpdateVehicleRequest request, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
@@ -87,6 +90,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_PROCESSING_STARTED", entityType = "VEHICLE")
     public VehicleResponse startProcessing(UUID id, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
@@ -101,6 +105,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_PROCESSING_FINISHED", entityType = "VEHICLE")
     public VehicleResponse finishProcessing(UUID id, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
@@ -114,6 +119,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_ACCEPTED", entityType = "VEHICLE")
     public VehicleResponse accept(UUID id, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
@@ -128,6 +134,7 @@ public class VehicleServiceImpl implements VehicleService {
 
     @Override
     @Transactional
+    @Auditable(action = "VEHICLE_REJECTED", entityType = "VEHICLE")
     public VehicleResponse reject(UUID id, String comment, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 

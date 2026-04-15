@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/warehouse")
+@RequestMapping("/warehouse")
 @RequiredArgsConstructor
 @Tag(name = "Ping", description = "Auth connectivity check")
 public class PingController {

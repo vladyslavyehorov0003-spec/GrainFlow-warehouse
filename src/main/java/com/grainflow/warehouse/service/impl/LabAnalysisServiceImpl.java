@@ -10,6 +10,7 @@ import com.grainflow.warehouse.mapper.LabAnalysisMapper;
 import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.LabAnalysisSpecification;
 import com.grainflow.warehouse.repository.VehicleRepository;
+import com.grainflow.warehouse.audit.Auditable;
 import com.grainflow.warehouse.service.LabAnalysisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_CREATED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse create(CreateLabAnalysisRequest request, UUID companyId) {
         Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
                 .orElseThrow(() -> WarehouseException.notFound("Vehicle not found: " + request.vehicleId()));
@@ -55,6 +57,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_UPDATED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse update(UUID id, UpdateLabAnalysisRequest request, UUID companyId) {
         LabAnalysis labAnalysis = findOwned(id, companyId);
 
@@ -82,6 +85,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_STARTED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse start(UUID id, UUID companyId) {
         LabAnalysis labAnalysis = findOwned(id, companyId);
 
@@ -96,6 +100,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_DRYING_STARTED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse startDrying(UUID id, StartDryingRequest request, UUID companyId) {
         LabAnalysis labAnalysis = findOwned(id, companyId);
 
@@ -114,6 +119,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_DRYING_FINISHED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse finishDrying(UUID id, FinishDryingRequest request, UUID companyId) {
         LabAnalysis labAnalysis = findOwned(id, companyId);
 
@@ -132,6 +138,7 @@ public class LabAnalysisServiceImpl implements LabAnalysisService {
 
     @Override
     @Transactional
+    @Auditable(action = "LAB_ANALYSIS_FINISHED", entityType = "LAB_ANALYSIS")
     public LabAnalysisResponse finishAnalysis(UUID id, FinishAnalysisRequest request, UUID companyId) {
         LabAnalysis labAnalysis = findOwned(id, companyId);
 

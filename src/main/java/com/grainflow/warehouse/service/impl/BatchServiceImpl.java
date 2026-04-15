@@ -11,6 +11,7 @@ import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.mapper.BatchMapper;
 import com.grainflow.warehouse.repository.BatchRepository;
 import com.grainflow.warehouse.repository.BatchSpecification;
+import com.grainflow.warehouse.audit.Auditable;
 import com.grainflow.warehouse.service.BatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class BatchServiceImpl implements BatchService {
 
     @Override
     @Transactional
+    @Auditable(action = "BATCH_CREATED", entityType = "BATCH")
     public BatchResponse create(CreateBatchRequest request, UUID companyId) {
         if (request.loadingTo().isBefore(request.loadingFrom())) {
             throw WarehouseException.badRequest("loadingTo must be after loadingFrom");
@@ -44,6 +46,7 @@ public class BatchServiceImpl implements BatchService {
 
     @Override
     @Transactional
+    @Auditable(action = "BATCH_UPDATED", entityType = "BATCH")
     public BatchResponse update(UUID id, UpdateBatchRequest request, UUID companyId) {
         Batch batch = findOwned(id, companyId);
 
@@ -93,6 +96,7 @@ public class BatchServiceImpl implements BatchService {
 
     @Override
     @Transactional
+    @Auditable(action = "BATCH_ACCEPTED_VOLUME_ADDED", entityType = "BATCH")
     public BatchResponse addAcceptedVolume(UUID id, AddVolumeRequest request, UUID companyId) {
         Batch batch = findOwned(id, companyId);
 
@@ -112,6 +116,7 @@ public class BatchServiceImpl implements BatchService {
 
     @Override
     @Transactional
+    @Auditable(action = "BATCH_UNLOADED_VOLUME_ADDED", entityType = "BATCH")
     public BatchResponse addUnloadedVolume(UUID id, AddVolumeRequest request, UUID companyId) {
         Batch batch = findOwned(id, companyId);
 
