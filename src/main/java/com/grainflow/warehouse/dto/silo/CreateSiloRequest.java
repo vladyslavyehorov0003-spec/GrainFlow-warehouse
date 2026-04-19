@@ -16,7 +16,7 @@ public record CreateSiloRequest(
         @DecimalMin(value = "0.001", message = "Max amount must be greater than 0")
         BigDecimal maxAmount,
 
-        // Culture can be set upfront or left null until first grain arrives
+        @NotNull(message = "Culture is required")
         CultureType culture,
 
         String comment

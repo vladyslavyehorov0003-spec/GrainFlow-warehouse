@@ -4,16 +4,16 @@ import com.grainflow.warehouse.dto.vehicle.CreateVehicleRequest;
 import com.grainflow.warehouse.dto.vehicle.UpdateVehicleRequest;
 import com.grainflow.warehouse.dto.vehicle.VehicleFilterRequest;
 import com.grainflow.warehouse.dto.vehicle.VehicleResponse;
-import com.grainflow.warehouse.entity.Batch;
-import com.grainflow.warehouse.entity.BatchStatus;
-import com.grainflow.warehouse.entity.Vehicle;
-import com.grainflow.warehouse.entity.VehicleStatus;
+import com.grainflow.warehouse.entity.*;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.mapper.VehicleMapper;
 import com.grainflow.warehouse.repository.BatchRepository;
+import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.VehicleRepository;
 import com.grainflow.warehouse.repository.VehicleSpecification;
 import com.grainflow.warehouse.audit.Auditable;
+import com.grainflow.warehouse.dto.lab.CreateLabAnalysisRequest;
+import com.grainflow.warehouse.service.LabAnalysisService;
 import com.grainflow.warehouse.service.VehicleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +31,8 @@ public class VehicleServiceImpl implements VehicleService {
     private final VehicleRepository vehicleRepository;
     private final BatchRepository batchRepository;
     private final VehicleMapper vehicleMapper;
+    private final LabAnalysisService labAnalysisService;
+    private final LabAnalysisRepository labAnalysisRepository;
 
     @Override
     @Transactional
@@ -39,6 +41,11 @@ public class VehicleServiceImpl implements VehicleService {
         Batch batch = batchRepository.findById(request.batchId())
                 .orElseThrow(() -> WarehouseException.notFound("Batch not found: " + request.batchId()));
 
+        if (request.culture() != null && !request.culture().equals(batch.getCulture())) {
+            throw WarehouseException.badRequest(
+                    "Vehicle culture must match batch culture: " + batch.getCulture()
+            );
+        }
         if (!batch.getCompanyId().equals(companyId)) {
             throw WarehouseException.forbidden("Access denied");
         }
@@ -100,7 +107,13 @@ public class VehicleServiceImpl implements VehicleService {
 
         vehicle.setStatus(VehicleStatus.IN_PROCESS);
         vehicle.setUnloadingStartedAt(LocalDateTime.now());
-        return vehicleMapper.toResponseDto(vehicleRepository.save(vehicle));
+        vehicleRepository.save(vehicle);
+
+        // Auto-create lab analysis record in the same transaction.
+        // If lab creation fails the vehicle status change is rolled back too.
+        labAnalysisService.create(new CreateLabAnalysisRequest(vehicle.getId(), null), companyId);
+
+        return vehicleMapper.toResponseDto(vehicle);
     }
 
     @Override
@@ -113,6 +126,7 @@ public class VehicleServiceImpl implements VehicleService {
             throw WarehouseException.badRequest("Vehicle must be in IN_PROCESS status to finish processing");
         }
 
+        vehicle.setStatus(VehicleStatus.PENDING_REVIEW);
         vehicle.setUnloadingFinishedAt(LocalDateTime.now());
         return vehicleMapper.toResponseDto(vehicleRepository.save(vehicle));
     }
@@ -123,8 +137,8 @@ public class VehicleServiceImpl implements VehicleService {
     public VehicleResponse accept(UUID id, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
-        if (vehicle.getStatus() != VehicleStatus.IN_PROCESS) {
-            throw WarehouseException.badRequest("Vehicle must be in IN_PROCESS status to be accepted");
+        if (vehicle.getStatus() != VehicleStatus.PENDING_REVIEW) {
+            throw WarehouseException.badRequest("Vehicle must be in PENDING_REVIEW status to be accepted");
         }
 
         vehicle.setStatus(VehicleStatus.ACCEPTED);
@@ -138,11 +152,18 @@ public class VehicleServiceImpl implements VehicleService {
     public VehicleResponse reject(UUID id, String comment, UUID companyId) {
         Vehicle vehicle = findOwned(id, companyId);
 
-        if (vehicle.getStatus() != VehicleStatus.IN_PROCESS) {
-            throw WarehouseException.badRequest("Vehicle must be in IN_PROCESS status to be rejected");
+        if (vehicle.getStatus() != VehicleStatus.PENDING_REVIEW) {
+            throw WarehouseException.badRequest("Vehicle must be in PENDING_REVIEW status to be rejected");
         }
 
         vehicle.setStatus(VehicleStatus.REJECTED);
+
+        labAnalysisRepository.findByVehicleId(vehicle.getId())
+                .ifPresent(lab -> {
+                    lab.setStatus(LabStatus.CANCELED);
+                    labAnalysisRepository.save(lab);
+                });
+
         vehicle.setDecidedAt(LocalDateTime.now());
         if (comment != null) vehicle.setComment(comment);
         return vehicleMapper.toResponseDto(vehicleRepository.save(vehicle));

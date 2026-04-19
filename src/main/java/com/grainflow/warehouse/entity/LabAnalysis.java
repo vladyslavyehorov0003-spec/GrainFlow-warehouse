@@ -32,6 +32,12 @@ public class LabAnalysis {
     @Column(nullable = false)
     private LabStatus status;
 
+
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ApprovalStatus approvalStatus;
+
     // --- Analysis stage ---
     @Column
     private LocalDateTime analysisStartedAt;
@@ -92,6 +98,7 @@ public class LabAnalysis {
     @Column
     private String comment;
 
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -103,6 +110,7 @@ public class LabAnalysis {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (status == null) status = LabStatus.PENDING;
+        if (approvalStatus == null) approvalStatus = ApprovalStatus.PENDING;
     }
 
     @PreUpdate

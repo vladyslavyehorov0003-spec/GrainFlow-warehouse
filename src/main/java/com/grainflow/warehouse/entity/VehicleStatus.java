@@ -4,6 +4,7 @@ package com.grainflow.warehouse.entity;
 public enum VehicleStatus {
     ARRIVED,     // truck arrived at the elevator, waiting to be processed
     IN_PROCESS,  // unloading and lab analysis in progress
+    PENDING_REVIEW,
     ACCEPTED,    // passed analysis, grain moved to silo
     REJECTED     // failed analysis, grain returned to supplier
 }

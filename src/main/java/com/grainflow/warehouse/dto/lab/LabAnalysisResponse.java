@@ -1,5 +1,6 @@
 package com.grainflow.warehouse.dto.lab;
 
+import com.grainflow.warehouse.entity.ApprovalStatus;
 import com.grainflow.warehouse.entity.LabStatus;
 import lombok.Builder;
 
@@ -34,6 +35,7 @@ public record LabAnalysisResponse(
 
         UUID siloId,
         LocalDateTime storedAt,
+        ApprovalStatus approvalStatus,
 
         String comment,
         LocalDateTime createdAt,

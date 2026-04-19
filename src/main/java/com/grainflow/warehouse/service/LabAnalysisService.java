@@ -18,9 +18,11 @@ public interface LabAnalysisService {
 
     LabAnalysisResponse start(UUID id, UUID companyId);
 
+    LabAnalysisResponse finishAnalysis(UUID id, FinishAnalysisRequest request, UUID companyId);
+
     LabAnalysisResponse startDrying(UUID id, StartDryingRequest request, UUID companyId);
 
     LabAnalysisResponse finishDrying(UUID id, FinishDryingRequest request, UUID companyId);
 
-    LabAnalysisResponse finishAnalysis(UUID id, FinishAnalysisRequest request, UUID companyId);
+    LabAnalysisResponse release(UUID id, ReleaseLabRequest request, UUID companyId);
 }

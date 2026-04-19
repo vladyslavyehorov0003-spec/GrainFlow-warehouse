@@ -83,7 +83,6 @@ public class VehicleController {
     }
 
     @PatchMapping("/{id}/accept")
-    @PreAuthorize("hasRole('MANAGER')")
     public ApiResponse<VehicleResponse> accept(
             @PathVariable UUID id,
             @AuthenticationPrincipal AuthenticatedUser user
@@ -92,12 +91,12 @@ public class VehicleController {
     }
 
     @PatchMapping("/{id}/reject")
-    @PreAuthorize("hasRole('MANAGER')")
     public ApiResponse<VehicleResponse> reject(
             @PathVariable UUID id,
             @RequestParam(required = false) String comment,
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
+
         return ApiResponse.success(vehicleService.reject(id, comment, user.companyId()), "Vehicle rejected");
     }
 }

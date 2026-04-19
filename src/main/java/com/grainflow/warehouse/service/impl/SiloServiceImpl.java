@@ -1,11 +1,10 @@
 package com.grainflow.warehouse.service.impl;
 
 import com.grainflow.warehouse.dto.silo.*;
-import com.grainflow.warehouse.entity.LabAnalysis;
-import com.grainflow.warehouse.entity.LabStatus;
-import com.grainflow.warehouse.entity.Silo;
+import com.grainflow.warehouse.entity.*;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.mapper.SiloMapper;
+import com.grainflow.warehouse.repository.BatchRepository;
 import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.SiloRepository;
 import com.grainflow.warehouse.repository.SiloSpecification;
@@ -26,6 +25,7 @@ import java.util.UUID;
 public class SiloServiceImpl implements SiloService {
 
     private final SiloRepository siloRepository;
+    private final BatchRepository batchRepository;
     private final LabAnalysisRepository labAnalysisRepository;
     private final SiloMapper siloMapper;
 
@@ -102,11 +102,11 @@ public class SiloServiceImpl implements SiloService {
         if (!labAnalysis.getCompanyId().equals(companyId)) {
             throw WarehouseException.forbidden("Access denied");
         }
-        if (labAnalysis.getStatus() != LabStatus.PASSED) {
+        if (labAnalysis.getApprovalStatus()!= ApprovalStatus.APPROVED) {
             throw WarehouseException.badRequest("Lab analysis must be PASSED to add grain to silo");
         }
 
-        BigDecimal amount = labAnalysis.getActualVolume();
+        BigDecimal amount = labAnalysis.getVolumeAfterDrying();
         BigDecimal newAmount = silo.getCurrentAmount().add(amount);
 
         if (newAmount.compareTo(silo.getMaxAmount()) > 0) {
@@ -121,13 +121,25 @@ public class SiloServiceImpl implements SiloService {
             silo.setCulture(labAnalysis.getVehicle().getCulture());
         }
 
+        if (!silo.getCulture().equals(labAnalysis.getVehicle().getCulture())) {
+            throw WarehouseException.badRequest(
+                    "Silo culture mismatch. Silo: " + silo.getCulture() +
+                            ", grain: " + labAnalysis.getVehicle().getCulture()
+            );
+        }
+
         silo.setCurrentAmount(newAmount);
+
+        Batch batch = labAnalysis.getVehicle().getBatch();
+        batch.setAcceptedVolume(batch.getAcceptedVolume().add(amount));
+        batchRepository.save(batch);
 
         // Mark lab analysis as STORED
         labAnalysis.setSiloId(id);
         labAnalysis.setStoredAt(LocalDateTime.now());
         labAnalysis.setStatus(LabStatus.STORED);
         labAnalysisRepository.save(labAnalysis);
+
 
         return siloMapper.toResponseDto(siloRepository.save(silo));
     }

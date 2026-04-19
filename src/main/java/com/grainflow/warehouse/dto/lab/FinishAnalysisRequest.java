@@ -1,6 +1,5 @@
 package com.grainflow.warehouse.dto.lab;
 
-import com.grainflow.warehouse.entity.LabStatus;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
@@ -23,10 +22,6 @@ public record FinishAnalysisRequest(
         @NotNull(message = "Actual volume is required")
         @DecimalMin(value = "0.001", message = "Actual volume must be greater than 0")
         BigDecimal actualVolume,
-
-        // PASSED or FAILED
-        @NotNull(message = "Status is required")
-        LabStatus status,
 
         String comment
 ) {}

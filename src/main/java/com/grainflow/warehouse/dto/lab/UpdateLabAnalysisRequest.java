@@ -36,6 +36,8 @@ public record UpdateLabAnalysisRequest(
         LocalDateTime dryingFinishedAt,
         LocalDateTime decidedAt,
 
+        boolean approved,
+
         LabStatus status,
         String comment
 ) {}

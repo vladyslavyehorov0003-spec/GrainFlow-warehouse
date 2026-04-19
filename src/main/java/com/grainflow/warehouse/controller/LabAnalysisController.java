@@ -71,6 +71,15 @@ public class LabAnalysisController {
         return ApiResponse.success(labAnalysisService.start(id, user.companyId()), "Analysis started");
     }
 
+    @PatchMapping("/{id}/finish-analysis")
+    public ApiResponse<LabAnalysisResponse> finishAnalysis(
+            @PathVariable UUID id,
+            @Valid @RequestBody FinishAnalysisRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        return ApiResponse.success(labAnalysisService.finishAnalysis(id, request, user.companyId()), "Analysis finished");
+    }
+
     @PatchMapping("/{id}/start-drying")
     public ApiResponse<LabAnalysisResponse> startDrying(
             @PathVariable UUID id,
@@ -89,13 +98,12 @@ public class LabAnalysisController {
         return ApiResponse.success(labAnalysisService.finishDrying(id, request, user.companyId()), "Drying finished");
     }
 
-    @PatchMapping("/{id}/finish-analysis")
-    @PreAuthorize("hasRole('MANAGER')")
-    public ApiResponse<LabAnalysisResponse> finishAnalysis(
+    @PatchMapping("/{id}/release")
+    public ApiResponse<LabAnalysisResponse> release(
             @PathVariable UUID id,
-            @Valid @RequestBody FinishAnalysisRequest request,
+            @Valid @RequestBody ReleaseLabRequest request,
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        return ApiResponse.success(labAnalysisService.finishAnalysis(id, request, user.companyId()), "Analysis finished");
+        return ApiResponse.success(labAnalysisService.release(id, request, user.companyId()), "Vehicle released for review");
     }
 }
