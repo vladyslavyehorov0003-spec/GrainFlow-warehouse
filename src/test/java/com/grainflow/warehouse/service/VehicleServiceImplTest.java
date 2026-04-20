@@ -1,5 +1,6 @@
 package com.grainflow.warehouse.service;
 
+import com.grainflow.warehouse.dto.lab.CreateLabAnalysisRequest;
 import com.grainflow.warehouse.dto.vehicle.CreateVehicleRequest;
 import com.grainflow.warehouse.dto.vehicle.UpdateVehicleRequest;
 import com.grainflow.warehouse.dto.vehicle.VehicleFilterRequest;
@@ -7,8 +8,11 @@ import com.grainflow.warehouse.dto.vehicle.VehicleResponse;
 import com.grainflow.warehouse.entity.*;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.mapper.VehicleMapper;
+import com.grainflow.warehouse.dto.lab.CreateLabAnalysisRequest;
 import com.grainflow.warehouse.repository.BatchRepository;
+import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.VehicleRepository;
+import com.grainflow.warehouse.service.LabAnalysisService;
 import com.grainflow.warehouse.service.impl.VehicleServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,9 +40,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VehicleServiceImplTest {
 
-    @Mock VehicleRepository vehicleRepository;
-    @Mock BatchRepository batchRepository;
-    @Mock VehicleMapper vehicleMapper;
+    @Mock VehicleRepository      vehicleRepository;
+    @Mock BatchRepository        batchRepository;
+    @Mock VehicleMapper          vehicleMapper;
+    @Mock LabAnalysisService     labAnalysisService;
+    @Mock LabAnalysisRepository  labAnalysisRepository;
     @InjectMocks VehicleServiceImpl vehicleService;
 
     private static final UUID COMPANY_A = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -233,11 +239,15 @@ class VehicleServiceImplTest {
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
         when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.IN_PROCESS));
+        // auto-creates lab analysis in the same transaction
+        when(labAnalysisService.create(any(CreateLabAnalysisRequest.class), eq(COMPANY_A)))
+                .thenReturn(null);
 
         vehicleService.startProcessing(VEHICLE_ID, COMPANY_A);
 
         assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.IN_PROCESS);
         assertThat(vehicle.getUnloadingStartedAt()).isNotNull();
+        verify(labAnalysisService).create(any(CreateLabAnalysisRequest.class), eq(COMPANY_A));
     }
 
     @Test
@@ -254,17 +264,17 @@ class VehicleServiceImplTest {
     // ===================== FINISH PROCESSING =====================
 
     @Test
-    void finishProcessing_inProcessVehicle_setsTimestamp() {
+    void finishProcessing_inProcessVehicle_setsPendingReviewAndTimestamp() {
         Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
-        when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.IN_PROCESS));
+        when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.PENDING_REVIEW));
 
         vehicleService.finishProcessing(VEHICLE_ID, COMPANY_A);
 
         assertThat(vehicle.getUnloadingFinishedAt()).isNotNull();
-        // Status stays IN_PROCESS — manager decides accept/reject
-        assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.IN_PROCESS);
+        // Status moves to PENDING_REVIEW — lab released vehicle for manager decision
+        assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.PENDING_REVIEW);
     }
 
     @Test
@@ -281,8 +291,8 @@ class VehicleServiceImplTest {
     // ===================== ACCEPT =====================
 
     @Test
-    void accept_inProcessVehicle_setsStatusAndDecidedAt() {
-        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
+    void accept_pendingReviewVehicle_setsStatusAndDecidedAt() {
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
         when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.ACCEPTED));
@@ -295,6 +305,7 @@ class VehicleServiceImplTest {
 
     @Test
     void accept_arrivedVehicle_throwsBadRequest() {
+        // ARRIVED is not PENDING_REVIEW → BAD_REQUEST
         Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.ARRIVED);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
 
@@ -305,8 +316,20 @@ class VehicleServiceImplTest {
     }
 
     @Test
-    void accept_otherCompany_throwsForbidden() {
+    void accept_inProcessVehicle_throwsBadRequest() {
+        // IN_PROCESS is not PENDING_REVIEW → BAD_REQUEST
         Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
+        when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
+
+        assertThatThrownBy(() -> vehicleService.accept(VEHICLE_ID, COMPANY_A))
+                .isInstanceOf(WarehouseException.class)
+                .extracting(e -> ((WarehouseException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void accept_otherCompany_throwsForbidden() {
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
 
         assertThatThrownBy(() -> vehicleService.accept(VEHICLE_ID, COMPANY_B))
@@ -318,11 +341,12 @@ class VehicleServiceImplTest {
     // ===================== REJECT =====================
 
     @Test
-    void reject_inProcessVehicle_withComment_setsStatusAndComment() {
-        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
+    void reject_pendingReviewVehicle_withComment_setsStatusAndComment() {
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
         when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.REJECTED));
+        when(labAnalysisRepository.findByVehicleId(VEHICLE_ID)).thenReturn(Optional.empty());
 
         vehicleService.reject(VEHICLE_ID, "moisture too high", COMPANY_A);
 
@@ -332,12 +356,13 @@ class VehicleServiceImplTest {
     }
 
     @Test
-    void reject_inProcessVehicle_withoutComment_doesNotOverwriteComment() {
-        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
+    void reject_pendingReviewVehicle_withoutComment_doesNotOverwriteComment() {
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
         vehicle.setComment("original comment");
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
         when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.REJECTED));
+        when(labAnalysisRepository.findByVehicleId(VEHICLE_ID)).thenReturn(Optional.empty());
 
         vehicleService.reject(VEHICLE_ID, null, COMPANY_A);
 
@@ -346,7 +371,27 @@ class VehicleServiceImplTest {
     }
 
     @Test
+    void reject_cancelsLabAnalysisIfPresent() {
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
+        LabAnalysis lab = new LabAnalysis();
+        lab.setId(UUID.randomUUID());
+        lab.setStatus(LabStatus.ANALYSIS_DONE);
+
+        when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
+        when(vehicleRepository.save(vehicle)).thenReturn(vehicle);
+        when(vehicleMapper.toResponseDto(vehicle)).thenReturn(buildResponse(VehicleStatus.REJECTED));
+        when(labAnalysisRepository.findByVehicleId(VEHICLE_ID)).thenReturn(Optional.of(lab));
+        when(labAnalysisRepository.save(lab)).thenReturn(lab);
+
+        vehicleService.reject(VEHICLE_ID, "rejected", COMPANY_A);
+
+        assertThat(lab.getStatus()).isEqualTo(LabStatus.CANCELED);
+        verify(labAnalysisRepository).save(lab);
+    }
+
+    @Test
     void reject_arrivedVehicle_throwsBadRequest() {
+        // ARRIVED is not PENDING_REVIEW → BAD_REQUEST
         Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.ARRIVED);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
 
@@ -358,7 +403,7 @@ class VehicleServiceImplTest {
 
     @Test
     void reject_otherCompany_throwsForbidden() {
-        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.IN_PROCESS);
+        Vehicle vehicle = buildVehicle(COMPANY_A, VehicleStatus.PENDING_REVIEW);
         when(vehicleRepository.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));
 
         assertThatThrownBy(() -> vehicleService.reject(VEHICLE_ID, null, COMPANY_B))

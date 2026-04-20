@@ -8,6 +8,7 @@ import com.grainflow.warehouse.entity.CultureType;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.security.AuthClient;
 import com.grainflow.warehouse.service.SiloService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -17,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -45,6 +49,14 @@ class SiloControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private static final String BASE_URL = "/api/v1/silos";
 
+    @BeforeEach
+    void setUp(WebApplicationContext wac) {
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(wac)
+                .apply(springSecurity())
+                .defaultRequest(get("/").contextPath("/api/v1")) // Устанавливаем контекст по умолчанию
+                .build();
+    }
     // ===================== CREATE =====================
 
     @Test
@@ -377,6 +389,6 @@ class SiloControllerTest {
     // ===================== HELPERS =====================
 
     private CreateSiloRequest validCreateRequest() {
-        return new CreateSiloRequest("Silo-A1", new BigDecimal("500.000"), null, null);
+        return new CreateSiloRequest("Silo-A1", new BigDecimal("500.000"), CultureType.OATS, null);
     }
 }

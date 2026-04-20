@@ -4,6 +4,7 @@ import com.grainflow.warehouse.dto.silo.*;
 import com.grainflow.warehouse.entity.*;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.mapper.SiloMapper;
+import com.grainflow.warehouse.repository.BatchRepository;
 import com.grainflow.warehouse.repository.LabAnalysisRepository;
 import com.grainflow.warehouse.repository.SiloRepository;
 import com.grainflow.warehouse.service.impl.SiloServiceImpl;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.*;
 class SiloServiceImplTest {
 
     @Mock SiloRepository siloRepository;
+    @Mock BatchRepository batchRepository;
     @Mock LabAnalysisRepository labAnalysisRepository;
     @Mock SiloMapper siloMapper;
     @InjectMocks SiloServiceImpl siloService;
@@ -210,9 +212,9 @@ class SiloServiceImplTest {
     // ===================== ADD GRAIN =====================
 
     @Test
-    void addGrain_passedLab_addsVolumeAndSetsStored() {
+    void addGrain_approvedLab_addsVolumeAfterDryingAndSetsStored() {
         Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
-        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.PASSED, new BigDecimal("24.800"));
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -231,7 +233,7 @@ class SiloServiceImplTest {
     @Test
     void addGrain_emptySilo_setsCultureFromLab() {
         Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
-        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.PASSED, new BigDecimal("24.800"));
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -245,9 +247,9 @@ class SiloServiceImplTest {
     }
 
     @Test
-    void addGrain_siloAlreadyHasGrain_doesNotOverwriteCulture() {
+    void addGrain_siloAlreadyHasGrain_accumulates() {
         Silo silo = buildSilo(COMPANY_A, new BigDecimal("100.000"), CultureType.WHEAT);
-        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.PASSED, new BigDecimal("24.800"));
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -262,9 +264,38 @@ class SiloServiceImplTest {
     }
 
     @Test
-    void addGrain_labNotPassed_throwsBadRequest() {
+    void addGrain_cultureMismatch_throwsBadRequest() {
+        Silo silo = buildSilo(COMPANY_A, new BigDecimal("100.000"), CultureType.CORN);
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
+        // lab's vehicle has WHEAT culture (set in buildLab), silo has CORN
+
+        when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
+        when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
+
+        assertThatThrownBy(() -> siloService.addGrain(SILO_ID, new AddGrainRequest(LAB_ID), COMPANY_A))
+                .isInstanceOf(WarehouseException.class)
+                .extracting(e -> ((WarehouseException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void addGrain_labNotApproved_throwsBadRequest() {
         Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
-        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.IN_PROGRESS, null);
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.IN_PROGRESS, ApprovalStatus.PENDING, null);
+
+        when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
+        when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
+
+        assertThatThrownBy(() -> siloService.addGrain(SILO_ID, new AddGrainRequest(LAB_ID), COMPANY_A))
+                .isInstanceOf(WarehouseException.class)
+                .extracting(e -> ((WarehouseException) e).getStatus())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void addGrain_rejectedLab_throwsBadRequest() {
+        Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.ANALYSIS_DONE, ApprovalStatus.REJECTED, null);
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -278,7 +309,7 @@ class SiloServiceImplTest {
     @Test
     void addGrain_notEnoughCapacity_throwsBadRequest() {
         Silo silo = buildSilo(COMPANY_A, new BigDecimal("490.000"), CultureType.WHEAT);
-        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.PASSED, new BigDecimal("24.800"));
+        LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -292,7 +323,7 @@ class SiloServiceImplTest {
     @Test
     void addGrain_labFromOtherCompany_throwsForbidden() {
         Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
-        LabAnalysis lab = buildLab(COMPANY_B, LabStatus.PASSED, new BigDecimal("24.800"));
+        LabAnalysis lab = buildLab(COMPANY_B, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
         when(labAnalysisRepository.findById(LAB_ID)).thenReturn(Optional.of(lab));
@@ -380,15 +411,11 @@ class SiloServiceImplTest {
         return silo;
     }
 
-    private LabAnalysis buildLab(UUID companyId, LabStatus status, BigDecimal actualVolume) {
-        Vehicle vehicle = new Vehicle();
-        vehicle.setId(VEHICLE_ID);
-        vehicle.setCompanyId(companyId);
-        vehicle.setCulture(CultureType.WHEAT);
-        vehicle.setDeclaredVolume(new BigDecimal("25.500"));
-        vehicle.setStatus(VehicleStatus.ACCEPTED);
-        vehicle.setArrivedAt(LocalDateTime.now());
-
+    /**
+     * @param volumeAfterDrying the volume the silo service reads to add grain;
+     *                          pass null for labs that should fail before reaching capacity check.
+     */
+    private LabAnalysis buildLab(UUID companyId, LabStatus status, ApprovalStatus approvalStatus, BigDecimal volumeAfterDrying) {
         Batch batch = new Batch();
         batch.setId(UUID.randomUUID());
         batch.setCompanyId(companyId);
@@ -402,6 +429,14 @@ class SiloServiceImplTest {
         batch.setLoadingTo(LocalDate.of(2026, 12, 31));
         batch.setCreatedAt(LocalDateTime.now());
         batch.setUpdatedAt(LocalDateTime.now());
+
+        Vehicle vehicle = new Vehicle();
+        vehicle.setId(VEHICLE_ID);
+        vehicle.setCompanyId(companyId);
+        vehicle.setCulture(CultureType.WHEAT);
+        vehicle.setDeclaredVolume(new BigDecimal("25.500"));
+        vehicle.setStatus(VehicleStatus.ACCEPTED);
+        vehicle.setArrivedAt(LocalDateTime.now());
         vehicle.setBatch(batch);
 
         LabAnalysis lab = new LabAnalysis();
@@ -409,7 +444,8 @@ class SiloServiceImplTest {
         lab.setCompanyId(companyId);
         lab.setVehicle(vehicle);
         lab.setStatus(status);
-        lab.setActualVolume(actualVolume);
+        lab.setApprovalStatus(approvalStatus);
+        lab.setVolumeAfterDrying(volumeAfterDrying);
         lab.setCreatedAt(LocalDateTime.now());
         lab.setUpdatedAt(LocalDateTime.now());
         return lab;

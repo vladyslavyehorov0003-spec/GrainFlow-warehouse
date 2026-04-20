@@ -1,6 +1,7 @@
 package com.grainflow.warehouse.fixture;
 
 import com.grainflow.warehouse.dto.lab.LabAnalysisResponse;
+import com.grainflow.warehouse.entity.ApprovalStatus;
 import com.grainflow.warehouse.entity.LabStatus;
 
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ public class LabAnalysisTestFixtures {
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
                 .status(LabStatus.PENDING)
+                .approvalStatus(ApprovalStatus.PENDING)
                 .createdAt(CREATED)
                 .updatedAt(CREATED)
                 .build();
@@ -34,9 +36,28 @@ public class LabAnalysisTestFixtures {
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
                 .status(LabStatus.IN_PROGRESS)
+                .approvalStatus(ApprovalStatus.PENDING)
                 .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
                 .createdAt(CREATED)
                 .updatedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
+                .build();
+    }
+
+    public static LabAnalysisResponse analysisDoneLab() {
+        return LabAnalysisResponse.builder()
+                .id(LAB_ID)
+                .companyId(COMPANY_A_ID)
+                .vehicleId(VEHICLE_ID)
+                .status(LabStatus.ANALYSIS_DONE)
+                .approvalStatus(ApprovalStatus.PENDING)
+                .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
+                .analysisFinishedAt(LocalDateTime.of(2026, 4, 14, 10, 0))
+                .moisture(new BigDecimal("14.50"))
+                .impurity(new BigDecimal("1.20"))
+                .protein(new BigDecimal("12.00"))
+                .actualVolume(new BigDecimal("25.500"))
+                .createdAt(CREATED)
+                .updatedAt(LocalDateTime.of(2026, 4, 14, 10, 0))
                 .build();
     }
 
@@ -45,7 +66,8 @@ public class LabAnalysisTestFixtures {
                 .id(LAB_ID)
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
-                .status(LabStatus.IN_PROGRESS)
+                .status(LabStatus.DRYING)
+                .approvalStatus(ApprovalStatus.PENDING)
                 .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
                 .dryingStartedAt(LocalDateTime.of(2026, 4, 14, 10, 0))
                 .estimatedDryingEndAt(LocalDateTime.of(2026, 4, 14, 12, 0))
@@ -55,12 +77,14 @@ public class LabAnalysisTestFixtures {
                 .build();
     }
 
+    /** Lab approved — ready to be added to a silo. */
     public static LabAnalysisResponse passedLab() {
         return LabAnalysisResponse.builder()
                 .id(LAB_ID)
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
-                .status(LabStatus.PASSED)
+                .status(LabStatus.ANALYSIS_DONE)
+                .approvalStatus(ApprovalStatus.APPROVED)
                 .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
                 .analysisFinishedAt(LocalDateTime.of(2026, 4, 14, 13, 0))
                 .moisture(new BigDecimal("14.50"))
@@ -78,12 +102,14 @@ public class LabAnalysisTestFixtures {
                 .build();
     }
 
+    /** Lab rejected — grain cannot be added to a silo. */
     public static LabAnalysisResponse failedLab() {
         return LabAnalysisResponse.builder()
                 .id(LAB_ID)
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
-                .status(LabStatus.FAILED)
+                .status(LabStatus.ANALYSIS_DONE)
+                .approvalStatus(ApprovalStatus.REJECTED)
                 .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
                 .analysisFinishedAt(LocalDateTime.of(2026, 4, 14, 13, 0))
                 .moisture(new BigDecimal("28.50"))
@@ -102,6 +128,7 @@ public class LabAnalysisTestFixtures {
                 .companyId(COMPANY_A_ID)
                 .vehicleId(VEHICLE_ID)
                 .status(LabStatus.STORED)
+                .approvalStatus(ApprovalStatus.APPROVED)
                 .analysisStartedAt(LocalDateTime.of(2026, 4, 14, 9, 0))
                 .analysisFinishedAt(LocalDateTime.of(2026, 4, 14, 13, 0))
                 .moisture(new BigDecimal("14.50"))

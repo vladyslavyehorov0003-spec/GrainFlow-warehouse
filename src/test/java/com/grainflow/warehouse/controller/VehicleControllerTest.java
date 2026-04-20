@@ -10,6 +10,7 @@ import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.fixture.VehicleTestFixtures;
 import com.grainflow.warehouse.security.AuthClient;
 import com.grainflow.warehouse.service.VehicleService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -19,6 +20,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -44,6 +48,14 @@ class VehicleControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private static final String BASE_URL = "/api/v1/vehicles";
 
+    @BeforeEach
+    void setUp(WebApplicationContext wac) {
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(wac)
+                .apply(springSecurity())
+                .defaultRequest(get("/").contextPath("/api/v1")) // Устанавливаем контекст по умолчанию
+                .build();
+    }
     // ===================== CREATE =====================
 
     @Test
@@ -303,10 +315,10 @@ class VehicleControllerTest {
     }
 
     @Test
-    void accept_asWorkerA1_returns403() throws Exception {
+    void accept_asWorkerA1_returns200() throws Exception {
         mockMvc.perform(patch(BASE_URL + "/" + VEHICLE_ID + "/accept")
                         .with(user(workerA1)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -343,10 +355,10 @@ class VehicleControllerTest {
     }
 
     @Test
-    void reject_asWorkerA1_returns403() throws Exception {
+    void reject_asWorkerA1_returns200() throws Exception {
         mockMvc.perform(patch(BASE_URL + "/" + VEHICLE_ID + "/reject")
                         .with(user(workerA1)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 
     @Test

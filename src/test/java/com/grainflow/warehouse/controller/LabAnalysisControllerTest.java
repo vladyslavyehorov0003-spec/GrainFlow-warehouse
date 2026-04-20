@@ -4,10 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.grainflow.warehouse.config.SecurityConfig;
 import com.grainflow.warehouse.dto.lab.*;
-import com.grainflow.warehouse.entity.LabStatus;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.security.AuthClient;
 import com.grainflow.warehouse.service.LabAnalysisService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -17,6 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -43,6 +46,14 @@ class LabAnalysisControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private static final String BASE_URL = "/api/v1/lab-analyses";
 
+    @BeforeEach
+    void setUp(WebApplicationContext wac) {
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(wac)
+                .apply(springSecurity())
+                .defaultRequest(get("/").contextPath("/api/v1")) // Устанавливаем контекст по умолчанию
+                .build();
+    }
     // ===================== CREATE =====================
 
     @Test
@@ -324,37 +335,36 @@ class LabAnalysisControllerTest {
     // ===================== FINISH ANALYSIS =====================
 
     @Test
-    void finishAnalysis_asManagerA_passed_returns200() throws Exception {
-        when(labAnalysisService.finishAnalysis(eq(LAB_ID), any(), eq(COMPANY_A_ID))).thenReturn(passedLab());
+    void finishAnalysis_asManagerA_approved_returns200() throws Exception {
+        when(labAnalysisService.finishAnalysis(eq(LAB_ID), any(), eq(COMPANY_A_ID))).thenReturn(analysisDoneLab());
 
         mockMvc.perform(patch(BASE_URL + "/" + LAB_ID + "/finish-analysis")
                         .with(user(managerA))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFinishRequest(LabStatus.PASSED, null))))
+                        .content(objectMapper.writeValueAsString(validFinishRequest(null))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("PASSED"));
+                .andExpect(jsonPath("$.data.status").value("ANALYSIS_DONE"));
     }
 
     @Test
-    void finishAnalysis_asManagerA_failed_withComment_returns200() throws Exception {
-        when(labAnalysisService.finishAnalysis(eq(LAB_ID), any(), eq(COMPANY_A_ID))).thenReturn(failedLab());
+    void finishAnalysis_asManagerA_withComment_returns200() throws Exception {
+        when(labAnalysisService.finishAnalysis(eq(LAB_ID), any(), eq(COMPANY_A_ID))).thenReturn(analysisDoneLab());
 
         mockMvc.perform(patch(BASE_URL + "/" + LAB_ID + "/finish-analysis")
                         .with(user(managerA))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFinishRequest(LabStatus.FAILED, "moisture too high"))))
+                        .content(objectMapper.writeValueAsString(validFinishRequest("needs drying"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("FAILED"))
-                .andExpect(jsonPath("$.data.comment").value("moisture too high"));
+                .andExpect(jsonPath("$.data.status").value("ANALYSIS_DONE"));
     }
 
     @Test
-    void finishAnalysis_asWorkerA1_returns403() throws Exception {
+    void finishAnalysis_asWorkerA1_returns200() throws Exception {
         mockMvc.perform(patch(BASE_URL + "/" + LAB_ID + "/finish-analysis")
                         .with(user(workerA1))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFinishRequest(LabStatus.PASSED, null))))
-                .andExpect(status().isForbidden());
+                        .content(objectMapper.writeValueAsString(validFinishRequest(null))))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -365,7 +375,7 @@ class LabAnalysisControllerTest {
         mockMvc.perform(patch(BASE_URL + "/" + LAB_ID + "/finish-analysis")
                         .with(user(managerB))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFinishRequest(LabStatus.PASSED, null))))
+                        .content(objectMapper.writeValueAsString(validFinishRequest(null))))
                 .andExpect(status().isForbidden());
     }
 
@@ -377,7 +387,7 @@ class LabAnalysisControllerTest {
         mockMvc.perform(patch(BASE_URL + "/" + LAB_ID + "/finish-analysis")
                         .with(user(managerA))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validFinishRequest(LabStatus.PASSED, null))))
+                        .content(objectMapper.writeValueAsString(validFinishRequest(null))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -392,13 +402,12 @@ class LabAnalysisControllerTest {
 
     // ===================== HELPERS =====================
 
-    private FinishAnalysisRequest validFinishRequest(LabStatus status, String comment) {
+    private FinishAnalysisRequest validFinishRequest(String comment) {
         return new FinishAnalysisRequest(
                 new BigDecimal("14.50"),
                 new BigDecimal("1.20"),
                 new BigDecimal("12.00"),
                 new BigDecimal("24.800"),
-                status,
                 comment
         );
     }
