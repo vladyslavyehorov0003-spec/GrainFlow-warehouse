@@ -8,5 +8,6 @@ public record ValidateResponse(
         UUID userId,
         UUID companyId,
         String email,
-        String role
+        String role,
+        String subscriptionStatus
 ) {}

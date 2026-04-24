@@ -43,6 +43,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // JwtAuthFilter.java — замінити перевірку підписки
+        if (!"ACTIVE".equals(validated.subscriptionStatus())) {
+            String method = request.getMethod();
+            if (method.equals("POST") || method.equals("PUT") ||
+                    method.equals("DELETE") || method.equals("PATCH")) {
+                writePaymentRequired(response, "Subscription required");
+                return;
+            }
+        }
+
         // Token is valid — build principal and set SecurityContext
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             AuthenticatedUser principal = new AuthenticatedUser(
@@ -65,6 +75,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void writePaymentRequired(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(402);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(
+                "{\"status\":\"error\",\"message\":\"" + message + "\",\"data\":null}"
+        );
     }
 
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
