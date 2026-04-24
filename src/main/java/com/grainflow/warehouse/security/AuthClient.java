@@ -36,6 +36,7 @@ public class AuthClient {
                 return invalid();
             }
 
+
             return response.data();
         } catch (RestClientException e) {
             log.error("Failed to reach auth-service for token validation: {}", e.getMessage());
@@ -44,7 +45,7 @@ public class AuthClient {
     }
 
     private ValidateResponse invalid() {
-        return new ValidateResponse(false, null, null, null, null);
+        return new ValidateResponse(false, null, null, null, null,null);
     }
 
     // Unwraps ApiResponse<ValidateTokenResponse> returned by auth-service

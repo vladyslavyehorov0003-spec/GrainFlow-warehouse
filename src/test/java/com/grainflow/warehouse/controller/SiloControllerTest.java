@@ -7,6 +7,7 @@ import com.grainflow.warehouse.dto.silo.*;
 import com.grainflow.warehouse.entity.CultureType;
 import com.grainflow.warehouse.exception.WarehouseException;
 import com.grainflow.warehouse.security.AuthClient;
+import com.grainflow.warehouse.security.ValidateResponse;
 import com.grainflow.warehouse.service.SiloService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,21 @@ class SiloControllerTest {
                 .defaultRequest(get("/").contextPath("/api/v1")) // Устанавливаем контекст по умолчанию
                 .build();
     }
+    // ===================== SUBSCRIPTION =====================
+
+    @Test
+    void anyWrite_withInactiveSubscription_returns402() throws Exception {
+        when(authClient.validate(any())).thenReturn(
+                new ValidateResponse(true, managerA.userId(), managerA.companyId(), managerA.email(), "MANAGER", "INACTIVE")
+        );
+
+        mockMvc.perform(post(BASE_URL)
+                        .header("Authorization", "Bearer fake-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validCreateRequest())))
+                .andExpect(status().isPaymentRequired());
+    }
+
     // ===================== CREATE =====================
 
     @Test
