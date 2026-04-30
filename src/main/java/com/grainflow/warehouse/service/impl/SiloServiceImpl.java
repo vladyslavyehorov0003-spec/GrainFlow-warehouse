@@ -116,11 +116,6 @@ public class SiloServiceImpl implements SiloService {
             );
         }
 
-        // Set culture from lab analysis if silo is empty
-        if (silo.getCulture() == null) {
-            silo.setCulture(labAnalysis.getVehicle().getCulture());
-        }
-
         if (!silo.getCulture().equals(labAnalysis.getVehicle().getCulture())) {
             throw WarehouseException.badRequest(
                     "Silo culture mismatch. Silo: " + silo.getCulture() +
@@ -158,12 +153,6 @@ public class SiloServiceImpl implements SiloService {
         }
 
         silo.setCurrentAmount(newAmount);
-
-        // Clear culture when silo is empty
-        if (newAmount.compareTo(BigDecimal.ZERO) == 0) {
-            silo.setCulture(null);
-        }
-
         return siloMapper.toResponseDto(siloRepository.save(silo));
     }
 

@@ -21,6 +21,12 @@ public class Batch {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // Optimistic lock — prevents concurrent addAcceptedVolume / addUnloadedVolume from
+    // producing inconsistent sums. Same pattern as Silo.version.
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(nullable = false)
     private UUID companyId;
 

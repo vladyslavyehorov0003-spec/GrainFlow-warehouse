@@ -20,6 +20,13 @@ public class Silo {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // Optimistic lock — prevents two concurrent addGrain/removeGrain from exceeding capacity.
+    // JPA appends "AND version=N" to every UPDATE; if another transaction already wrote,
+    // version mismatch → ObjectOptimisticLockingFailureException → 409 to the client.
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(nullable = false)
     private UUID companyId;
 
