@@ -8,13 +8,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-// Principal set in SecurityContext after successful token validation.
-// Warehouse has no User entity — we work only with data returned from auth-service.
+// Principal set in SecurityContext after successful header-based authentication.
+// Warehouse has no User entity — we work only with data forwarded by the gateway.
 public record AuthenticatedUser(
         UUID userId,
         UUID companyId,
         String email,
-        String role
+        String role,
+        boolean companyVerified,
+        String subscriptionStatus
 ) implements UserDetails {
 
     @Override
@@ -23,6 +25,6 @@ public record AuthenticatedUser(
     }
 
     @Override public String getPassword()   { return null; }
-    @Override public String getUsername()   { return email; }
+    @Override public String getUsername()   { return email != null ? email : userId.toString(); }
     @Override public boolean isEnabled()    { return true; }
 }
