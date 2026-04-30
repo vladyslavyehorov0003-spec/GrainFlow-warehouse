@@ -19,19 +19,20 @@ public class BatchTestFixtures {
             UUID.fromString("11111111-1111-1111-1111-111111111111"),
             COMPANY_A_ID,
             "manager.a@grainflow.com",
-            "MANAGER"
+            "MANAGER",
+            true,"ACTIVE"
     );
     public static final AuthenticatedUser workerA1 = new AuthenticatedUser(
             UUID.fromString("22222222-2222-2222-2222-222222222222"),
             COMPANY_A_ID,
             "worker.a1@grainflow.com",
-            "WORKER"
+            "WORKER",true,"ACTIVE"
     );
     public static final AuthenticatedUser workerA2 = new AuthenticatedUser(
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
             COMPANY_A_ID,
             "worker.a2@grainflow.com",
-            "WORKER"
+            "WORKER",true,"ACTIVE"
     );
 
     // --- Company B ---
@@ -41,13 +42,13 @@ public class BatchTestFixtures {
             UUID.fromString("44444444-4444-4444-4444-444444444444"),
             COMPANY_B_ID,
             "manager.b@grainflow.com",
-            "MANAGER"
+            "MANAGER",true,"ACTIVE"
     );
     public static final AuthenticatedUser workerB1 = new AuthenticatedUser(
             UUID.fromString("55555555-5555-5555-5555-555555555555"),
             COMPANY_B_ID,
             "worker.b1@grainflow.com",
-            "WORKER"
+            "WORKER",true,"ACTIVE"
     );
 
     // --- Sample batch belonging to Company A ---

@@ -6,8 +6,6 @@ import com.grainflow.warehouse.config.SecurityConfig;
 import com.grainflow.warehouse.dto.silo.*;
 import com.grainflow.warehouse.entity.CultureType;
 import com.grainflow.warehouse.exception.WarehouseException;
-import com.grainflow.warehouse.security.AuthClient;
-import com.grainflow.warehouse.security.ValidateResponse;
 import com.grainflow.warehouse.service.SiloService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +43,6 @@ class SiloControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockitoBean SiloService siloService;
-    @MockitoBean AuthClient authClient;
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private static final String BASE_URL = "/api/v1/silos";
@@ -62,12 +59,29 @@ class SiloControllerTest {
 
     @Test
     void anyWrite_withInactiveSubscription_returns402() throws Exception {
-        when(authClient.validate(any())).thenReturn(
-                new ValidateResponse(true, managerA.userId(), managerA.companyId(), managerA.email(), "MANAGER", "INACTIVE")
-        );
-
+        // Gateway forwards X-* headers — HeaderAuthFilter reads them directly.
+        // We simulate a fully verified company but with INACTIVE subscription.
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer fake-token")
+                        .header("X-User-Id",             managerA.userId().toString())
+                        .header("X-Company-Id",          managerA.companyId().toString())
+                        .header("X-Email",               managerA.email())
+                        .header("X-Role",                "MANAGER")
+                        .header("X-Company-Verified",    "true")
+                        .header("X-Subscription-Status", "INACTIVE")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validCreateRequest())))
+                .andExpect(status().isPaymentRequired());
+    }
+
+    @Test
+    void anyWrite_withUnverifiedCompany_returns402() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .header("X-User-Id",             managerA.userId().toString())
+                        .header("X-Company-Id",          managerA.companyId().toString())
+                        .header("X-Email",               managerA.email())
+                        .header("X-Role",                "MANAGER")
+                        .header("X-Company-Verified",    "false")
+                        .header("X-Subscription-Status", "ACTIVE")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validCreateRequest())))
                 .andExpect(status().isPaymentRequired());
