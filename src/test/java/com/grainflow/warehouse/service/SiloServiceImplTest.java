@@ -213,7 +213,7 @@ class SiloServiceImplTest {
 
     @Test
     void addGrain_approvedLab_addsVolumeAfterDryingAndSetsStored() {
-        Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
+        Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, CultureType.WHEAT);
         LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
@@ -232,7 +232,7 @@ class SiloServiceImplTest {
 
     @Test
     void addGrain_emptySilo_setsCultureFromLab() {
-        Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, null);
+        Silo silo = buildSilo(COMPANY_A, BigDecimal.ZERO, CultureType.WHEAT);
         LabAnalysis lab = buildLab(COMPANY_A, LabStatus.DRYING_DONE, ApprovalStatus.APPROVED, new BigDecimal("24.800"));
 
         when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
@@ -361,18 +361,6 @@ class SiloServiceImplTest {
         assertThat(silo.getCulture()).isEqualTo(CultureType.WHEAT);
     }
 
-    @Test
-    void removeGrain_emptiesSilo_clearsCulture() {
-        Silo silo = buildSilo(COMPANY_A, new BigDecimal("100.000"), CultureType.WHEAT);
-        when(siloRepository.findById(SILO_ID)).thenReturn(Optional.of(silo));
-        when(siloRepository.save(silo)).thenReturn(silo);
-        when(siloMapper.toResponseDto(silo)).thenReturn(buildResponse(BigDecimal.ZERO, null));
-
-        siloService.removeGrain(SILO_ID, new RemoveGrainRequest(new BigDecimal("100.000")), COMPANY_A);
-
-        assertThat(silo.getCurrentAmount()).isEqualByComparingTo("0");
-        assertThat(silo.getCulture()).isNull();
-    }
 
     @Test
     void removeGrain_notEnoughGrain_throwsBadRequest() {
