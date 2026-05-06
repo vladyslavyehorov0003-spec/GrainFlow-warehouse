@@ -1,5 +1,6 @@
 package com.grainflow.warehouse.dto.lab;
 
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
@@ -12,6 +13,7 @@ public record FinishDryingRequest(
         BigDecimal volumeAfterDrying,
 
         @NotNull(message = "Moisture after drying is required")
-        @DecimalMin(value = "0.00", inclusive = true)
+        @DecimalMin(value = "0.00", inclusive = true, message = "Moisture must be at least 0%")
+        @DecimalMax(value = "100.00", inclusive = true, message = "Moisture cannot exceed 100%")
         BigDecimal moistureAfterDrying
 ) {}
